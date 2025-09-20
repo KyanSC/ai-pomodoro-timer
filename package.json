@@ -3,19 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:classic": "next dev",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.57.4",
-    "@upstash/redis": "^1.35.3",
-    "jose": "^6.1.0",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
