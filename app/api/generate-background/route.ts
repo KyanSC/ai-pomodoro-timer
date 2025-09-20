@@ -11,9 +11,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { prompt } = generateBackgroundSchema.parse(body);
 
-    // TODO: Rate limiting
-    // TODO: Moderation check
-    // TODO: Cache check
 
     if (!process.env.REPLICATE_API_TOKEN) {
       return NextResponse.json(
@@ -26,24 +23,40 @@ export async function POST(request: NextRequest) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    // Use a high-quality image generation model
-    // This is a popular model for landscape/background generation
+    const MODEL_NAME = "black-forest-labs/flux-1.1-pro";
+    
     const output = await replicate.run(
-      "stability-ai/stable-diffusion:db21e45d3f7023abc2e46a38a7e4facf9b91b7c6ac8e3a6a13a0143c5db0c24d",
+      MODEL_NAME,
       {
         input: {
-          prompt: `${prompt}, high quality, detailed, landscape, background, 4k, cinematic lighting`,
-          width: 1920,
-          height: 1080,
-          num_inference_steps: 20,
-          guidance_scale: 7.5,
-          num_outputs: 1,
+          prompt: `${prompt}, high quality, detailed, background, 4k, cinematic lighting`,
+          prompt_upsampling: true,
+          safety_tolerance: 6,
         }
       }
     );
 
-    // Replicate returns an array of URLs
-    const imageUrl = Array.isArray(output) ? output[0] : output;
+    // Handle Flux 1.1 Pro output format
+    let imageUrl: string;
+    
+    if (output && typeof output === 'object' && 'url' in output && typeof (output as { url: () => string }).url === 'function') {
+      // Flux 1.1 Pro returns an object with url() method
+      imageUrl = (output as { url: () => string }).url();
+    } else if (output && typeof output === 'object' && 'href' in output) {
+      // Handle URL object directly
+      imageUrl = (output as { href: string }).href;
+    } else if (Array.isArray(output)) {
+      imageUrl = output[0];
+    } else if (typeof output === 'string') {
+      imageUrl = output;
+    } else {
+      throw new Error('Unexpected response format from image generation service');
+    }
+
+    // Convert URL object to string if needed
+    if (imageUrl && typeof imageUrl === 'object' && 'href' in imageUrl) {
+      imageUrl = (imageUrl as { href: string }).href;
+    }
 
     if (!imageUrl || typeof imageUrl !== 'string') {
       throw new Error('Invalid response from image generation service');

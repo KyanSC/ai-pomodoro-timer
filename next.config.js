@@ -12,7 +12,7 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   // Improve build stability
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     if (dev) {
       // Disable webpack cache in development to prevent corruption
       config.cache = false;

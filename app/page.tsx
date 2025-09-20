@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBackground } from "../lib/hooks/useBackground";
+import { Toast } from "../components/Toast";
 
 type Phase = "focus" | "shortBreak" | "longBreak";
 
@@ -112,9 +114,13 @@ export default function Home() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [totalUsageTime, setTotalUsageTime] = useState(0); // in seconds
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  
+  // Use the custom background hook
+  const { currentBackground, setBackground, clearBackground } = useBackground();
+  
   const lengths = useMemo(
     () => ({ focus: durMins.focus * 60, short: durMins.short * 60, long: durMins.long * 60 }),
     [durMins]
@@ -166,10 +172,10 @@ export default function Home() {
   };
 
   const generateBackground = async () => {
-    if (!backgroundPrompt.trim()) return;
+    if (!backgroundPrompt.trim() || backgroundPrompt.trim().length < 3) return;
     
     setIsGenerating(true);
-    setGenerationError(null);
+    setShowToast(false);
     
     try {
       const response = await fetch('/api/generate-background', {
@@ -183,31 +189,35 @@ export default function Home() {
       }
       
       const data = await response.json();
-      setBackgroundImage(data.imageUrl);
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Generation failed');
+      await setBackground(data.imageUrl);
+    } catch {
+      setToastMessage('Couldn\'t generate image. Try again.');
+      setShowToast(true);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const clearBackground = () => {
-    setBackgroundImage(null);
+  const handleClearBackground = () => {
+    clearBackground();
     setBackgroundPrompt('');
-    setGenerationError(null);
+    setShowToast(false);
   };
 
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background */}
-      {backgroundImage ? (
-        <div 
-          className="absolute inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
-        />
-      ) : (
+      <div 
+        className="absolute inset-0 -z-10 bg-cover bg-center bg-no-repeat transition-opacity duration-400"
+        style={{ 
+          backgroundImage: currentBackground ? `url(${currentBackground})` : undefined,
+          opacity: currentBackground ? 1 : 0
+        }}
+      />
+      {!currentBackground && (
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(1200px_600px_at_50%_-100px,rgba(59,130,246,0.35),transparent),radial-gradient(800px_400px_at_80%_20%,rgba(236,72,153,0.25),transparent),linear-gradient(180deg,#0B1220,40%,#0a0f1c)]" />
       )}
+      
       {/* Soft glows */}
       <div className="pointer-events-none absolute -z-10 inset-0">
         <div className="absolute left-[10%] top-[20%] h-56 w-56 bg-sky-400/20 blur-3xl rounded-full" />
@@ -328,20 +338,23 @@ export default function Home() {
                 disabled={isGenerating}
                 onKeyPress={(e) => e.key === 'Enter' && generateBackground()}
               />
-              <button
-                onClick={generateBackground}
-                disabled={isGenerating || !backgroundPrompt.trim()}
-                className="h-10 px-4 rounded-full bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition border border-white/20 backdrop-blur disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Generate'
-                )}
-              </button>
-              {backgroundImage && (
+                  <button
+                    onClick={generateBackground}
+                    disabled={isGenerating || !backgroundPrompt.trim() || backgroundPrompt.trim().length < 3}
+                    className="h-10 px-4 rounded-full bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition border border-white/20 backdrop-blur disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGenerating ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Generating...</span>
+                      </div>
+                    ) : (
+                      'Generate'
+                    )}
+                  </button>
+              {currentBackground && (
                 <button
-                  onClick={clearBackground}
+                  onClick={handleClearBackground}
                   className="h-10 px-3 rounded-full text-white/60 hover:text-white hover:bg-white/5 transition border border-white/10"
                   title="Clear background"
                 >
@@ -351,11 +364,6 @@ export default function Home() {
                 </button>
               )}
             </div>
-            {generationError && (
-              <div className="mt-2 text-center text-sm text-red-400">
-                {generationError}
-              </div>
-            )}
           </div>
 
           {/* Controls */}
@@ -436,12 +444,19 @@ export default function Home() {
               </div>
 
               <div className="text-center text-md text-white/50">
-                All timer sessions completed (pomodoro, breaks) are tracked
+                All completed timer sessions (pomodoro, breaks) are tracked
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Toast for error messages */}
+      <Toast 
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }
