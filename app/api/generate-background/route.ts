@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       MODEL_NAME,
       {
         input: {
-          prompt: `${prompt}, high quality, detailed, background, 4k, cinematic lighting`,
+          prompt: `${prompt}, high quality, detailed`,
           prompt_upsampling: true,
           safety_tolerance: 6,
         }

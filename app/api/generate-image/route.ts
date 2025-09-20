@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Get default values from environment
     const defaultAspect = process.env.REPLICATE_DEFAULT_ASPECT || '16:9';
     const defaultFormat = process.env.REPLICATE_DEFAULT_FORMAT || 'webp';
-    const defaultQuality = parseInt(process.env.REPLICATE_DEFAULT_QUALITY || '80');
+    const defaultQuality = parseInt(process.env.REPLICATE_DEFAULT_QUALITY || '100');
     const defaultSafety = parseInt(process.env.REPLICATE_DEFAULT_SAFETY || '6');
 
     // Prepare input parameters
