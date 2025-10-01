@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBackground } from "../lib/hooks/useBackground";
 import { Toast } from "../components/Toast";
+import { UserMenu } from "../components/UserMenu";
+import { useSession } from "../components/SessionProvider";
 
 type Phase = "focus" | "shortBreak" | "longBreak";
 
@@ -110,7 +112,6 @@ function usePomodoroTimer(lengths: { focus: number; short: number; long: number 
 
 export default function Home() {
   const [durMins, setDurMins] = useState({ focus: 50, short: 5, long: 15 });
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [totalUsageTime, setTotalUsageTime] = useState(0); // in seconds
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
@@ -120,6 +121,9 @@ export default function Home() {
   
   // Use the custom background hook
   const { currentBackground, setBackground, clearBackground } = useBackground();
+  
+  // Use session for auth state
+  const { user } = useSession();
   
   const lengths = useMemo(
     () => ({ focus: durMins.focus * 60, short: durMins.short * 60, long: durMins.long * 60 }),
@@ -134,27 +138,6 @@ export default function Home() {
     }
   }, [timer.remaining, timer.phaseLength]);
 
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-        setIsFullscreen(true);
-      } else {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-      }
-    } catch (err) {
-      console.warn('Fullscreen not supported or blocked:', err);
-    }
-  };
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   // Format total usage time for display
   const formatTotalTime = (totalSeconds: number) => {
@@ -224,22 +207,8 @@ export default function Home() {
         <div className="absolute right-[5%] bottom-[10%] h-64 w-64 bg-fuchsia-400/15 blur-3xl rounded-full" />
       </div>
 
-      {/* Fullscreen toggle */}
-      <button
-        onClick={toggleFullscreen}
-        className="fixed top-4 right-4 z-50 h-8 w-8 rounded-md bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition backdrop-blur"
-        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-      >
-        {isFullscreen ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 3v5H3m13 0V3h-5m5 13v-5h-5m-8 5v-5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )}
-      </button>
+      {/* User Menu */}
+      <UserMenu onOpenStats={() => setShowDashboard(true)} />
 
       {/* Centered content */}
       <div className="min-h-screen flex items-center justify-center px-6">
@@ -326,6 +295,20 @@ export default function Home() {
             <div className="mt-2 text-xs text-white/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100">hover to show controls</div>
           </div>
 
+          {/* Sign-in banner for logged out users */}
+          {!user && (
+            <div className="mb-6 text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>Sign in to sync settings and stats across devices</span>
+              </div>
+            </div>
+          )}
+
           {/* Background generation input - hidden by default, shown on hover */}
           <div className="mb-6 opacity-0 pointer-events-none transition-opacity duration-300 group-hover:opacity-100 group-hover:pointer-events-auto">
             <div className="flex items-center gap-3 max-w-md mx-auto">
@@ -364,7 +347,7 @@ export default function Home() {
                 </button>
               )}
             </div>
-          </div>
+        </div>
 
           {/* Controls */}
           <div className={`flex items-center gap-4 justify-center opacity-0 pointer-events-none transition-opacity duration-300 group-hover:opacity-100 group-hover:pointer-events-auto`}>
@@ -382,17 +365,6 @@ export default function Home() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 12a9 9 0 1 0 3-6.708" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M3 4v4h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button
-              className="h-12 px-5 rounded-full text-white/90 hover:text-white transition border border-white/10 hover:bg-white/5"
-              onClick={() => setShowDashboard(true)}
-              aria-label="User Dashboard"
-            >
-              {/* User icon */}
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
           </div>
